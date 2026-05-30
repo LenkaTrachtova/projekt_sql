@@ -1,0 +1,15 @@
+--Kolik je možné si koupit litrů mléka a kilogramů chleba za první a poslední srovnatelné období v dostupných datech cen a mezd?
+SELECT
+	year,
+	round(avg(tlpspf.avg_salary),2) AS avg_year_salary,
+	tlpspf.food_category,
+	avg(tlpspf.avg_price) AS avg_prices,
+	round(avg(tlpspf.avg_salary)/avg(tlpspf.avg_price), 2) AS quantity
+FROM t_lenka_trachtova_project_sql_primary_final AS tlpspf
+WHERE year IN (2006, 2018)
+AND tlpspf.food_category IN (
+	'Mléko polotučné pasterované',
+	'Chléb konzumní kmínový'
+)
+GROUP BY year, food_category
+ORDER BY year ASC;
