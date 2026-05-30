@@ -1,0 +1,98 @@
+--Má výška HDP vliv na změny ve mzdách a cenách potravin? Neboli, pokud HDP vzroste výrazněji v jednom roce,
+--projeví se to na cenách potravin či mzdách ve stejném nebo následujícím roce výraznějším růstem?
+WITH cte_wage AS (
+	SELECT 
+		year,
+		round(avg(tltpspf.avg_salary),2) AS  avg_year_salary
+	FROM t_lenka_trachtova_project_sql_primary_final AS tltpspf
+	GROUP BY year 
+),
+wage_growth AS (
+	SELECT 
+		*,
+		LAG(avg_year_salary) OVER (ORDER BY year ASC) AS previous_year_salary 
+	FROM cte_wage
+),
+wage_growth_percent AS (
+	SELECT 
+		*,
+		round(
+	(
+		((avg_year_salary - previous_year_salary)
+		/previous_year_salary)* 100
+		),2
+		) AS wage_percent_growth
+	FROM wage_growth
+),
+cte_price AS (
+	SELECT
+		year,
+		round(avg(tlpspf.avg_price),2) AS avg_year_price
+	FROM t_lenka_project_sql_primary_final AS tlpspf
+	GROUP BY year
+),
+price_growth AS (
+	SELECT
+		*,
+		LAG(avg_year_price) OVER (ORDER BY year) AS previous_year_price
+	FROM cte_price
+),
+price_growth_percent AS (
+	SELECT
+		*,
+		round(
+	(
+		((avg_year_price - previous_year_price)
+		/previous_year_price)* 100
+		),2
+		) AS price_percent_growth
+	FROM price_growth
+),
+gdp_clean AS (
+	SELECT  
+		year,
+		ROUND(AVG(gdp)::numeric, 2) AS avg_gdp
+	FROM t_lenka_trachtova_project_sql_primary_final AS tltpspf
+	GROUP BY year
+),
+gdp_growth AS (
+		SELECT 
+			*,
+			LAG(avg_gdp) OVER (ORDER BY year) AS previous_gdp
+		FROM gdp_clean
+),
+gdp_growth_percent AS (
+	SELECT
+		*,
+		round(
+	(	
+			((avg_gdp - previous_gdp)
+			/previous_gdp)* 100
+			)::numeric,2
+			) AS gdp_percent_growth
+	FROM gdp_growth
+),
+wage_price AS (
+	SELECT
+		wage_growth_percent.year,
+		wage_percent_growth,
+		price_percent_growth 
+	FROM wage_growth_percent
+	JOIN price_growth_percent
+	ON (wage_growth_percent.year = price_growth_percent.year)
+),
+final_compare AS (
+	SELECT
+		wage_price.year,
+    	wage_percent_growth,
+    	price_percent_growth,
+    	gdp_percent_growth,
+    	round(wage_percent_growth -gdp_percent_growth, 2) AS wage_vs_gdp,
+    	round(price_percent_growth - gdp_percent_growth , 2) AS price_vs_gdp
+	FROM wage_price
+	JOIN gdp_growth_percent
+	ON wage_price.year = gdp_growth_percent.year
+)
+SELECT*
+FROM final_compare
+WHERE wage_percent_growth IS NOT NULL;
