@@ -1,0 +1,19 @@
+--sekundární tabulka
+CREATE TABLE t_lenka_trachtova_project_SQL_secondary_final AS
+SELECT
+    e.country,
+    e.year,
+    e.population,
+    e.gdp,
+    e.gini
+FROM economies AS e
+JOIN countries AS c
+    ON e.country = c.country
+WHERE c.continent = 'Europe'
+    AND e.year BETWEEN 2006 AND 2018
+    AND e.population IS NOT NULL
+    AND e.gdp IS NOT NULL
+    AND e.gini IS NOT NULL
+ORDER BY
+	 e.YEAR,
+     e.country;
