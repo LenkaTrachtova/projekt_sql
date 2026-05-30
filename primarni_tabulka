@@ -1,0 +1,56 @@
+--primarní tabulka
+CREATE TABLE t_lenka_trachtova_project_SQL_primary_final AS
+SELECT
+	wages.year,
+	wages.industry_name,
+	wages.avg_salary,
+	prices.food_category,
+	prices.avg_price,
+	gdp_data.gdp
+from(
+	SELECT 
+    	cp.payroll_year AS year,
+    	cpib.name AS industry_name,
+    	ROUND(AVG(cp.value)::numeric, 2) AS avg_salary
+    FROM czechia_payroll AS cp
+    JOIN czechia_payroll_industry_branch AS cpib
+        ON cp.industry_branch_code = cpib.code
+    WHERE cp.value_type_code = 5958
+        AND cp.calculation_code = 100
+        AND cp.industry_branch_code IS NOT NULL
+        AND cp.value IS NOT NULL
+        AND cp.payroll_year BETWEEN 2006 AND 2018
+    GROUP BY
+        cp.payroll_year,
+        cpib.name
+) AS wages
+JOIN (
+ 	SELECT
+    EXTRACT(YEAR FROM cp.date_from) AS year,
+        cpc.name AS food_category,
+        ROUND(AVG(cp.value)::numeric, 2) AS avg_price
+    FROM czechia_price AS cp
+    JOIN czechia_price_category AS cpc
+        ON cp.category_code = cpc.code
+    WHERE cp.value IS NOT NULL
+        AND EXTRACT(YEAR FROM cp.date_from)
+            BETWEEN 2006 AND 2018
+    GROUP BY
+        EXTRACT(YEAR FROM cp.date_from),
+        cpc.name
+) AS prices
+	ON wages.year = prices.year
+JOIN (
+    SELECT
+        year,
+        gdp
+    FROM economies
+    WHERE country = 'Czech Republic'
+        AND gdp IS NOT NULL
+        AND year BETWEEN 2006 AND 2018
+) AS gdp_data
+	ON wages.year = gdp_data.year
+ORDER BY
+	wages.year,
+	wages.industry_name,
+    prices.food_category;
