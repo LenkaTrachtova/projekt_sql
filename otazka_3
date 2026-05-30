@@ -1,0 +1,46 @@
+--Která kategorie potravin zdražuje nejpomaleji (je u ní nejnižší percentuální meziroční nárůst)? 
+WITH cte_clean_data AS (
+	SELECT DISTINCT
+		tlpspf."year",
+		tlpspf.food_category,
+		tlpspf.avg_price 
+	FROM t_lenka_project_sql_primary_final AS tlpspf
+),
+previous_prices AS (
+	SELECT 
+		*,
+		LAG(avg_price) OVER (PARTITION BY food_category ORDER BY food_category, year) AS previous_price
+	FROM cte_clean_data
+),
+price_compare AS (
+	SELECT 
+		*,
+		CASE 
+			WHEN previous_price IS NULL THEN '-'
+			WHEN avg_price > previous_price THEN 'up'
+			WHEN avg_price = previous_price THEN 'flat'
+			ELSE 'down'
+		END AS price_trend,
+	    round(
+		(
+			((avg_price - previous_price)
+			/ previous_price) * 100
+			)::numeric,
+			2
+			) AS price_growth_percemt
+	FROM previous_prices
+),
+prumerne_zvyseni_cen AS (
+    SELECT
+        food_category,
+        ROUND(
+            AVG(price_growth_percemt),
+            2
+        ) AS avg_growth_percent
+    FROM price_compare
+    WHERE previous_price IS NOT NULL
+    GROUP BY food_category
+)
+SELECT*
+FROM prumerne_zvyseni_cen
+ORDER BY avg_growth_percent ASC;
