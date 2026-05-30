@@ -1,0 +1,51 @@
+--Rostou v průběhu let mzdy ve všech odvětvích, nebo v některých klesají?
+CREATE OR REPLACE VIEW v_salary_trends AS 
+WITH clean_data AS (
+	SELECT DISTINCT
+		year, 
+		industry_name,
+		avg_salary
+	FROM t_lenka_trachtova_project_sql_primary_final
+	),
+	salary_previous_year AS (
+		SELECT
+			*,
+			LAG(clean_data.avg_salary) OVER (PARTITION BY industry_name ORDER BY year) AS previous_salary
+		FROM clean_data
+	),
+	salary_compare AS (
+		SELECT
+			*,
+			CASE 
+				WHEN previous_salary IS NULL THEN '-'
+				WHEN avg_salary > previous_salary THEN 'up'
+				WHEN avg_salary = previous_salary THEN 'flat'
+				ELSE 'down'
+			END AS salary_trend
+		FROM salary_previous_year
+	),
+	salary_difference AS (
+		SELECT 
+			*,
+			(avg_salary - previous_salary) AS salary_difference,
+			ROUND(
+        (
+            ((avg_salary - previous_salary)
+            / previous_salary) * 100
+        )::numeric,
+        2
+    ) AS salary_growth_percent
+    FROM salary_compare
+   )
+   SELECT*
+FROM salary_difference;
+------------------------------------------------------------
+SELECT*
+FROM v_salary_trends AS vst
+WHERE vst.previous_salary IS NOT NULL 
+ORDER BY salary_growth_percent  ASC;
+-----------------------------------------------------------
+SELECT*
+FROM v_salary_trends AS vst
+WHERE vst.previous_salary IS NOT NULL 
+ORDER BY salary_growth_percent  DESC; 
