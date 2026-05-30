@@ -1,0 +1,65 @@
+--Existuje rok, ve kterém byl meziroční nárůst cen potravin výrazně vyšší než růst mezd (větší než 10 %)?
+WITH cte_wages AS (
+	SELECT
+		year,
+		round(avg(tltpspf.avg_salary),2) AS avg_year_salary
+	FROM t_lenka_trachtova_project_sql_primary_final AS tltpspf
+	GROUP BY YEAR
+),
+wage_growth AS (
+	SELECT
+		*,
+		LAG(avg_year_salary) OVER (ORDER BY year ASC) AS previous_year_salary
+	FROM cte_wages
+),
+wage_growth_percent AS (
+	SELECT
+		*,
+		round(
+	(
+		((avg_year_salary - previous_year_salary)
+		/previous_year_salary)* 100
+		),2
+		) AS wage_percent_growth
+	FROM wage_growth
+),
+cte_prices AS (
+	SELECT 
+		year,
+		round(avg(avg_price),2) AS avg_year_price
+	FROM t_lenka_trachtova_project_sql_primary_final AS tltpspf
+	GROUP BY year
+ ),
+price_growth AS (
+	SELECT 
+		*,
+		LAG(avg_year_price) OVER (ORDER BY year ASC) AS previous_year_price
+	FROM cte_prices
+),
+prices_growth_percent AS (
+	SELECT
+		*,
+		round(
+		(
+		((avg_year_price - previous_year_price)
+		/previous_year_price)* 100
+		),2
+		) AS prices_percent_growth
+	FROM price_growth
+),
+final_compare AS (
+	SELECT
+		wage_growth_percent.year,
+		wage_percent_growth,
+		prices_percent_growth,
+		ROUND(
+    	prices_percent_growth - wage_percent_growth,
+    	2
+	) AS growth_difference
+	FROM wage_growth_percent
+	JOIN prices_growth_percent
+	ON (wage_growth_percent.year = prices_growth_percent.year)
+)
+SELECT*
+FROM final_compare 
+WHERE growth_difference > 10
